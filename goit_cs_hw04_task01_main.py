@@ -26,7 +26,7 @@ def time_wrapper(func):
 
 
 @time_wrapper
-def search_file(key: str, in_q: Queue, out_jq: JoinableQueue):
+def search_file(key: list[str], in_q: Queue, out_jq: JoinableQueue):
     logging.debug(f'Start searching for {key}')
 
     while not in_q.empty():
@@ -35,10 +35,11 @@ def search_file(key: str, in_q: Queue, out_jq: JoinableQueue):
             try:
                 logging.debug(f'Reading {file}')
                 with open(file, 'r') as f:
-                    if key in f.read():
-                        out_jq.put(file)
-                        logging.info(f'Found {key} in {file}')
-                        out_jq.task_done()
+                    for k in key:
+                        if k in f.read():
+                            out_jq.put(file)
+                            logging.info(f'Found {k} in {file}')
+                            out_jq.task_done()
             except FileNotFoundError:
                 logging.error(f'File {file} not found')
             except PermissionError:
@@ -52,7 +53,7 @@ def search_file(key: str, in_q: Queue, out_jq: JoinableQueue):
 
 def init_argparse():
     parser = argparse.ArgumentParser(prog='Search key in files')
-    parser.add_argument('key', type=str, help='Key to search')
+    parser.add_argument('keys', type=str, nargs='+', help='Key or keys to search')
     parser.add_argument('-t', '--parallelism', type=int, default=MAX_THREADS, help='Max threads')
     parser.add_argument('-p', '--path', type=str, default='.', help='Path to search')
     return parser
@@ -72,7 +73,7 @@ def init_path_list(arg_list, qf: Queue):
 
 
 def runner_main(argl, qf: Queue, jq: JoinableQueue):
-    thread_list = [Thread(target=search_file, args=(argl.key, qf, jq)) for _ in
+    thread_list = [Thread(target=search_file, args=(argl.keys, qf, jq)) for _ in
                    range(min(argl.parallelism, qf.qsize()))]
     for t in thread_list:
         t.start()
@@ -93,7 +94,7 @@ def prepare_tasks(qf: Queue):
     parser = init_argparse()
     argl = parser.parse_args()
     ## use this to override arguments
-    # argl.key = 'test'
+    # argl.keys = ['test']
     logging.debug(f'Arguments: {argl}')
     init_path_list(argl, qf)
     sleep(1)
@@ -105,7 +106,7 @@ def finalize(argl, jq: JoinableQueue):
     jq.join()
     res = join_results(jq)
 
-    logging.info(f'Results: {dict({argl.key: res})}')
+    logging.info(f'Results: {dict({k: res for k in argl.keys})}')
 
 
 if __name__ == '__main__':

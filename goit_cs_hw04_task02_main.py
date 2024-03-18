@@ -10,7 +10,7 @@ def worker_func(*args, **kwargs):
 
 
 def runner_main(argl, qf, jq):
-    process_list = [Process(target=worker_func, args=(argl.key, qf, jq)) for _ in
+    process_list = [Process(target=worker_func, args=(argl.keys, qf, jq)) for _ in
                     range(min(argl.parallelism, qf.qsize()))]
     for t in process_list:
         t.start()
