@@ -13,8 +13,8 @@ MAX_THREADS = 10
 Queue_files = Queue()
 jQueue_results = JoinableQueue()
 
-format = '%(asctime)s %(process)d %(threadName)s %(message)s'
-logging.basicConfig(format=format, level=logging.DEBUG, datefmt='%H:%M:%S')
+format_str = '%(asctime)s %(process)d %(threadName)s %(message)s'
+logging.basicConfig(format=format_str, level=logging.DEBUG, datefmt='%H:%M:%S')
 
 
 def time_wrapper(func):
@@ -35,9 +35,10 @@ def search_file(key: list[str], in_q: Queue, out_jq: JoinableQueue):
             try:
                 logging.debug(f'Reading {file}')
                 with open(file, 'r') as f:
+                    contents = f.read()
                     for k in key:
-                        if k in f.read():
-                            out_jq.put(file)
+                        if k in contents:
+                            out_jq.put({k: file})
                             logging.info(f'Found {k} in {file}')
                             out_jq.task_done()
             except FileNotFoundError:
@@ -84,9 +85,14 @@ def runner_main(argl, qf: Queue, jq: JoinableQueue):
 
 def join_results(jq: JoinableQueue):
     jq.join()
-    res = []
+    res = {}
     while not jq.empty():
-        res.append(jq.get(False, timeout=1))
+        o = jq.get(False, timeout=1)
+        for k, v in o.items():
+            if k in res:
+                res[k].add(v)
+            else:
+                res[k] = {v}
     return res
 
 
@@ -106,7 +112,7 @@ def finalize(argl, jq: JoinableQueue):
     jq.join()
     res = join_results(jq)
 
-    logging.info(f'Results: {dict({k: res for k in argl.keys})}')
+    logging.info(f'Results: {res}')
 
 
 if __name__ == '__main__':
