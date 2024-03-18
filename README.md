@@ -1,7 +1,7 @@
-usage: Search key in files [-h] [-t PARALLELISM] [-p PATH] key
+usage: Search keys in files keys [-h] [-t PARALLELISM] [-p PATH] 
 
 positional arguments:
-  key                   Key to search
+  keys                   Key or multiple keys to search
 
 options:
   -h, --help            show this help message and exit
